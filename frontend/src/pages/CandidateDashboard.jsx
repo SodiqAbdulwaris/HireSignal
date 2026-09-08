@@ -6,6 +6,7 @@ import Nav from "../components/layout/Nav";
 import PageHeader from "../components/layout/PageHeader";
 import Tabs from "../components/ui/Tabs";
 import SkeletonBlock from "../components/ui/SkeletonBlock";
+import Alert from "../components/ui/Alert";
 
 export default function CandidateDashboard({ onContactClick }) {
   const { token, user, updateUser } = useAuth();
@@ -13,6 +14,7 @@ export default function CandidateDashboard({ onContactClick }) {
   const navigate = useNavigate();
 
   const [jobs, setJobs] = useState([]);
+  const [loadError, setLoadError] = useState(null);
   const [applications, setApplications] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loadingData, setLoadingData] = useState(true);
@@ -34,11 +36,14 @@ export default function CandidateDashboard({ onContactClick }) {
 
   const loadJobsData = useCallback(async (cursor = null) => {
     if (cursor) setLoadingJobs(true);
+    setLoadError(null);
     const r = await getJobs(token, cursor);
     if (r.success) {
       setJobs(prev => cursor ? [...prev, ...r.data.items] : r.data.items);
       setNextCursor(r.data.nextCursor);
       setHasMore(r.data.hasMore);
+    } else {
+      setLoadError(r.message || "Could not load roles. Please try again.");
     }
     setLoadingJobs(false);
   }, [token]);
@@ -77,27 +82,28 @@ export default function CandidateDashboard({ onContactClick }) {
   }
 
   const appliedCount = applications.length;
-  const openJobs = jobs.length;
+
 
   const tabDefs = [
-    { key: "jobs", label: "Browse Jobs", count: openJobs },
-    { key: "applications", label: "My Applications", count: appliedCount },
+    { key: "jobs", label: "Find jobs" },
+    { key: "applications", label: "Applications", count: appliedCount },
     { key: "profile", label: "Profile" },
     { key: "resume", label: "Resume" },
-    { key: "contact", label: "Contact" },
+    { key: "contact", label: "Help" },
   ];
 
   return (
     <div>
       <Nav onContactClick={onContactClick} />
-      <div className="px-4 pb-16 pt-6 sm:px-8">
+      <main id="main-content" className="app-main" tabIndex={-1}>
         <PageHeader
-          title={`Good to see you, ${user.fullName.split(" ")[0]}.`}
-          subtitle="Browse open roles and track your applications."
+          title={{ jobs: "Find work that fits.", applications: "Your applications", profile: "Your experience, in focus.", resume: "Manage your resumes", contact: "How can we help?" }[activeTab]}
+          subtitle={{ jobs: "Start with the requirements. Take a closer look when a role feels right.", applications: "See where each application stands and manage your next steps.", profile: "Review the information recruiters see when you apply.", resume: "Keep your experience current and choose the resume you want to use.", contact: "Get support with your account or applications." }[activeTab]}
         />
         <div className="overflow-x-auto">
           <Tabs tabs={tabDefs} active={activeTab} onChange={handleTabChange} />
         </div>
+        {loadError && <div><Alert message={loadError} /><button type="button" className="mb-5 min-h-11 text-sm text-primary underline" onClick={() => loadJobsData()}>Try loading roles again</button></div>}
         {loadingData ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
             {[1, 2, 3].map(i => (
@@ -126,7 +132,7 @@ export default function CandidateDashboard({ onContactClick }) {
             }}
           />
         )}
-      </div>
+      </main>
     </div>
   );
 }

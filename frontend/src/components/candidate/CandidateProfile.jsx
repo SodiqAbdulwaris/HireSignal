@@ -1,135 +1,40 @@
 import { useState } from "react";
-import { PersonIcon, SewingPinIcon } from "@radix-ui/react-icons";
-import Avatar from "../ui/Avatar";
+import { Link, useOutletContext } from "react-router-dom";
+import { educationLabel } from "../../lib/jobLabels";
 import Alert from "../ui/Alert";
 import Btn from "../ui/Btn";
-import Spinner from "../ui/Spinner";
-import StatCard from "../ui/StatCard";
 
-import { useOutletContext } from "react-router-dom";
-
+function years(entry) {
+  if (!entry.startYear && !entry.endYear) return "Dates not provided";
+  return `${entry.startYear || "Start year not provided"} — ${entry.endYear || "End year not provided"}`;
+}
 export default function CandidateProfile() {
   const { profile, handleAcceptParsedName: onAcceptParsedName } = useOutletContext();
-  const [acceptingName, setAcceptingName] = useState(false);
-  const [nameMessage, setNameMessage] = useState(null);
-  const [nameError, setNameError] = useState(null);
-
-  if (!profile) {
-    return (
-      <div className="py-16 text-center text-muted-foreground">
-        <PersonIcon width={40} height={40} className="mx-auto mb-4 opacity-30" />
-        <p>Upload your resume to auto-generate your profile.</p>
-      </div>
-    );
+  const [accepting, setAccepting] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [error, setError] = useState(null);
+  if (!profile) return <div className="empty-panel"><div className="page-eyebrow">Tell your story</div><h2>Your experience belongs here.</h2><p>Upload a resume to create your profile, then review the extracted information before applying.</p><Link className="text-link" to="/resume">Add your resume →</Link></div>;
+  const name = profile.fullName || "Name not provided";
+  const differentName = profile.parsedFullName && profile.parsedFullName.trim().toLowerCase() !== name.trim().toLowerCase();
+  async function acceptName() {
+    if (!onAcceptParsedName || accepting) return;
+    setAccepting(true); setMessage(null); setError(null);
+    try {
+      const result = await onAcceptParsedName();
+      if (result.success) setMessage("Account name updated from your resume.");
+      else setError(result.message || "Could not update your name.");
+    } catch { setError("Could not update your name. Try again."); }
+    finally { setAccepting(false); }
   }
-
-  const accountName = profile.fullName || "Candidate";
-  const parsedName = profile.parsedFullName;
-  const showParsedName =
-    parsedName && parsedName.trim().toLowerCase() !== accountName.trim().toLowerCase();
-
-  async function handleAcceptParsedName() {
-    if (!onAcceptParsedName) return;
-    setAcceptingName(true);
-    setNameMessage(null);
-    setNameError(null);
-    const result = await onAcceptParsedName();
-    setAcceptingName(false);
-
-    if (result.success) {
-      setNameMessage("Account name updated from your resume.");
-    } else {
-      setNameError(result.message);
-    }
-  }
-
-  return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {/* Left */}
-      <div className="flex flex-col gap-4">
-        <div className="fade-up rounded-[14px] border border-border bg-card p-6">
-          <Alert message={nameError} variant="error" />
-          <Alert message={nameMessage} variant="success" />
-          <div className="mb-5 flex flex-wrap items-center gap-4">
-            <Avatar name={accountName} size={52} />
-            <div>
-              <div className="text-base font-medium">{accountName}</div>
-              {showParsedName && <div className="text-xs text-muted-foreground">Resume name: {parsedName}</div>}
-              <div className="text-[13px] text-muted-foreground">{profile.email}</div>
-              {profile.phone && <div className="text-xs text-muted-foreground">{profile.phone}</div>}
-              {profile.location && <div className="flex items-center gap-1 text-xs text-muted-foreground"><SewingPinIcon /> {profile.location}</div>}
-            </div>
-          </div>
-          {showParsedName && (
-            <div className="mb-4 rounded-[9px] bg-secondary p-4">
-              <div className="mb-3 text-[13px] text-muted-foreground">
-                Your resume uses a different name. Accept it to update your account name.
-              </div>
-              <Btn variant="secondary" size="sm" onClick={handleAcceptParsedName} disabled={acceptingName}>
-                {acceptingName ? <Spinner size={14} /> : "Accept resume name"}
-              </Btn>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard label="Experience" value={`${profile.yearsExperience || 0} yrs`} />
-            <StatCard label="Education" value={profile.educationLevel || "—"} />
-          </div>
-        </div>
-        <div className="fade-up-2 rounded-[14px] border border-border bg-card p-6">
-          <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Skills</div>
-          <div className="flex flex-wrap gap-1.5">
-            {(profile.skills || []).length
-              ? profile.skills.map((sk) => (
-                  <span key={sk} className="rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">{sk}</span>
-                ))
-              : <span className="text-[13px] text-muted-foreground">No skills detected</span>}
-          </div>
-        </div>
-        {profile.certifications?.length > 0 && (
-          <div className="fade-up-3 rounded-[14px] border border-border bg-card p-6">
-            <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Certifications</div>
-            {profile.certifications.map((c, i) => <div key={i} className="py-1 text-[13px] text-muted-foreground">{c}</div>)}
-          </div>
-        )}
-      </div>
-      {/* Right */}
-      <div className="flex flex-col gap-4">
-        <div className="fade-up rounded-[14px] border border-border bg-card p-6">
-          <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Experience</div>
-          {(profile.experience || []).length ? profile.experience.map((e, i) => (
-            <div key={i} className="mb-2 rounded-[9px] bg-secondary p-3">
-              <div className="text-[13px] font-medium">{e.role}</div>
-              <div className="text-xs text-muted-foreground">{e.company}</div>
-              <div className="mt-0.5 text-[11px] text-muted-foreground">{e.startYear} — {e.endYear || "Present"}</div>
-            </div>
-          )) : <p className="text-[13px] text-muted-foreground">No experience parsed</p>}
-        </div>
-        <div className="fade-up-2 rounded-[14px] border border-border bg-card p-6">
-          <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Education</div>
-          {(profile.education || []).length ? profile.education.map((e, i) => (
-            <div key={i} className="mb-2 rounded-[9px] bg-secondary p-3">
-              <div className="text-[13px] font-medium">{e.degree}</div>
-              <div className="text-xs text-muted-foreground">{e.institution}</div>
-              <div className="mt-0.5 text-[11px] text-muted-foreground">{e.startYear} — {e.endYear || "Present"}</div>
-            </div>
-          )) : <p className="text-[13px] text-muted-foreground">No education parsed</p>}
-        </div>
-        {profile.projects?.length > 0 && (
-          <div className="fade-up-3 rounded-[14px] border border-border bg-card p-6">
-            <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Projects</div>
-            {profile.projects.map((p, i) => (
-              <div key={i} className="mb-3">
-                <div className="mb-1 text-[13px] font-medium">{p.name}</div>
-                <div className="flex flex-wrap gap-1">
-                  {(p.technologies || []).map((t) => (
-                    <span key={t} className="rounded-full border border-border bg-secondary px-2.5 py-0.5 text-[11px] font-medium text-secondary-foreground">{t}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+  return <div className="profile-layout">
+    <aside className="profile-summary"><div className="page-eyebrow">Your profile</div><h2>{name}</h2><dl className="profile-contact"><div><dt>Email</dt><dd>{profile.email || "Not provided"}</dd></div><div><dt>Phone</dt><dd>{profile.phone || "Not provided"}</dd></div><div><dt>Location</dt><dd>{profile.location || "Not provided"}</dd></div></dl><dl className="detail-facts"><div><dt>Experience</dt><dd>{profile.yearsExperience == null ? "Not provided" : `${profile.yearsExperience} years`}</dd></div><div><dt>Education</dt><dd>{educationLabel(profile.educationLevel)}</dd></div></dl><div className="context-note">Built from your resume. Check that the details reflect your experience.<Link className="text-link mt-3 block" to="/resume">Manage resumes →</Link></div></aside>
+    <div className="profile-body"><Alert message={error} /><Alert message={message} variant="success" />
+      {differentName && <div className="inline-confirm mb-6"><div><h3>A different name was found</h3><p>Your resume says <strong>{profile.parsedFullName}</strong>. You can use this as your account name.</p></div><Btn variant="secondary" disabled={accepting} onClick={acceptName}>{accepting ? "Updating…" : "Accept resume name"}</Btn></div>}
+      <section className="profile-section"><div className="section-heading"><h2>Skills</h2><span>{profile.skills?.length || 0} listed</span></div>{profile.skills?.length ? <ul className="skill-list">{profile.skills.map(skill => <li key={skill}>{skill}</li>)}</ul> : <p>No skills were extracted from your resume.</p>}</section>
+      <section className="profile-section"><h2>Experience</h2>{profile.experience?.length ? profile.experience.map((entry, index) => <article className="timeline-entry" key={index}><div><h3>{entry.role || "Role not provided"}</h3><p>{entry.company || "Company not provided"}</p></div><span>{years(entry)}</span></article>) : <p>No work experience was extracted. Projects and education can also help describe what you bring.</p>}</section>
+      <section className="profile-section"><h2>Education</h2>{profile.education?.length ? profile.education.map((entry, index) => <article className="timeline-entry" key={index}><div><h3>{entry.degree || "Qualification not provided"}</h3><p>{entry.institution || "Institution not provided"}</p></div><span>{years(entry)}</span></article>) : <p>No education details were extracted.</p>}</section>
+      <section className="profile-section"><h2>Projects</h2>{profile.projects?.length ? profile.projects.map((project, index) => <article className="timeline-entry" key={index}><div><h3>{project.name || "Untitled project"}</h3><p>{project.technologies?.join(" · ") || "No technologies listed"}</p></div></article>) : <p>No projects were extracted from your resume.</p>}</section>
+      {profile.certifications?.length > 0 && <section className="profile-section"><h2>Certifications</h2><ul className="space-y-3 text-sm">{profile.certifications.map((item, index) => <li key={index}>{item}</li>)}</ul></section>}
     </div>
-  );
+  </div>;
 }
