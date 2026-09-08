@@ -1,106 +1,34 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { verifyEmail, resendVerification } from "../lib/api";
 import AuthLayout from "../components/layout/AuthLayout";
 import Btn from "../components/ui/Btn";
-import Spinner from "../components/ui/Spinner";
 import Alert from "../components/ui/Alert";
+import FormField from "../components/ui/FormField";
 
-export default function VerifyEmailPage() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const token = searchParams.get("token");
-
-  const [loading, setLoading] = useState(true);
+export default function VerifyEmailPage({ onVerify = verifyEmail, onResend = resendVerification, signInPath = "/" }) {
+  const [params] = useSearchParams(); const token = params.get("token"); const navigate = useNavigate();
+  const [loading, setLoading] = useState(Boolean(token));
+  const [verified, setVerified] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-
   const [email, setEmail] = useState("");
-  const [resending, setResending] = useState(false);
-  const [resendMsg, setResendMsg] = useState(null);
-  const [resendError, setResendError] = useState(null);
-
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState(null);
   useEffect(() => {
-    if (!token) {
-      setError("Invalid link. Missing verification token.");
-      setLoading(false);
-      return;
-    }
-
-    async function doVerify() {
-      const r = await verifyEmail(token);
-      setLoading(false);
-      if (r.success) {
-        setSuccess("Email verified successfully! Redirecting to sign in...");
-        setTimeout(() => {
-          navigate("/?verified=true");
-        }, 3000);
-      } else {
-        setError(r.message || "Email verification failed.");
-      }
-    }
-
-    doVerify();
-  }, [token, navigate]);
-
-  const handleResend = async (e) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      setResendError("Please enter your email.");
-      return;
-    }
-    setResending(true);
-    setResendError(null);
-    setResendMsg(null);
-    const r = await resendVerification(email);
-    setResending(false);
-    if (r.success) {
-      setResendMsg("If that email is registered and unverified, a verification link has been sent.");
-    } else {
-      setResendError(r.message || "Failed to resend verification email.");
-    }
-  };
-
-  return (
-    <AuthLayout title="Email Verification">
-      {loading ? (
-        <div className="flex flex-col items-center gap-4 py-8">
-          <Spinner size={32} />
-          <p className="text-sm text-muted-foreground">Verifying your email address...</p>
-        </div>
-      ) : (
-        <div>
-          <Alert message={error} variant="error" />
-          <Alert message={success} variant="success" />
-
-          {success && (
-            <div className="mt-4 text-center">
-              <Btn variant="primary" onClick={() => navigate("/")}>Go to Sign In</Btn>
-            </div>
-          )}
-
-          {error && (
-            <div className="mt-6 border-t border-border pt-6">
-              <h3 className="mb-3 text-sm font-medium text-foreground">Resend Verification Email</h3>
-              <Alert message={resendError} variant="error" />
-              <Alert message={resendMsg} variant="success" />
-              <form onSubmit={handleResend}>
-                <div className="mb-4">
-                  <input
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <Btn variant="secondary" fullWidth type="submit" disabled={resending}>
-                  {resending ? <Spinner size={16} /> : "Resend Link"}
-                </Btn>
-              </form>
-            </div>
-          )}
-        </div>
-      )}
-    </AuthLayout>
-  );
+    let active = true;
+    setVerified(false); setError(null); setLoading(Boolean(token));
+    if (!token) return;
+    (async () => { try { const result = await onVerify(token); if (active) { setVerified(Boolean(result.success)); if (!result.success) setError(result.message || "This verification link could not be used. Request another below."); } } catch { if (active) setError("Could not verify your email. Please try again."); } finally { if (active) setLoading(false); } })();
+    return () => { active = false; };
+  }, [token, onVerify]);
+  async function resend(event) {
+    event.preventDefault(); if (sending) return; setSending(true); setError(null); setMessage(null);
+    try { const result = await onResend(email.trim()); if (result.success) setMessage("If this email is registered and unverified, a new link will arrive shortly."); else setError(result.message || "Could not send a new link. Try again."); }
+    catch { setError("Could not send a new link. Try again."); }
+    finally { setSending(false); }
+  }
+  return <AuthLayout title={verified ? "Your email is verified." : "Verify your email."} subtitle={verified ? "Your account is ready. Sign in to continue." : "Confirm your email address to finish setting up your account."}>
+    {loading ? <p className="context-note" role="status">Checking your verification link…</p> : verified ? <Btn fullWidth onClick={() => navigate(signInPath)}>Continue to sign in</Btn> : <><Alert message={error} /><Alert message={message} variant="success" />{!token && <p className="context-note mb-5">Open the verification link in your email, or request a new one below.</p>}<form onSubmit={resend}><FormField label="Email address"><input type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={event => setEmail(event.target.value)} required /></FormField><Btn fullWidth type="submit" disabled={sending}>{sending ? "Sending…" : "Send a new verification link"}</Btn></form></>}
+    {!verified && <button className="text-link mt-6" onClick={() => navigate(signInPath)}>← Back to sign in</button>}
+  </AuthLayout>;
 }

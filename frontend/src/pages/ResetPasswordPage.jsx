@@ -1,87 +1,37 @@
-import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { resetPassword } from "../lib/api";
 import AuthLayout from "../components/layout/AuthLayout";
 import Btn from "../components/ui/Btn";
-import Spinner from "../components/ui/Spinner";
 import Alert from "../components/ui/Alert";
 import FormField from "../components/ui/FormField";
 
-export default function ResetPasswordPage() {
-  const [searchParams] = useSearchParams();
+export default function ResetPasswordPage({ onReset = resetPassword, signInPath = "/" }) {
+  const [params] = useSearchParams();
   const navigate = useNavigate();
-  const token = searchParams.get("token");
-
-  const [form, setForm] = useState({ password: "", confirmPassword: "" });
+  const token = params.get("token");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-
-  useEffect(() => {
-    if (!token) {
-      setError("Invalid link. Missing password reset token.");
-    }
-  }, [token]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (form.password.length < 8) {
-      setError("Password must be at least 8 characters long.");
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-    const r = await resetPassword(token, form.password);
-    setLoading(false);
-    if (r.success) {
-      setSuccess("Password reset successful! Redirecting to sign in...");
-      setTimeout(() => {
-        navigate("/");
-      }, 3000);
-    } else {
-      setError(r.message || "Failed to reset password.");
-    }
-  };
-
-  return (
-    <AuthLayout title="Reset Password" subtitle="Enter your new secure password">
-      <Alert message={error} variant="error" />
-      <Alert message={success} variant="success" />
-
-      {!token ? (
-        <div className="mt-4 text-center">
-          <Btn variant="primary" onClick={() => navigate("/")}>Go to Sign In</Btn>
-        </div>
-      ) : !success ? (
-        <form onSubmit={handleSubmit}>
-          <FormField label="New Password" hint="(min 8 characters)">
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-            />
-          </FormField>
-          <FormField label="Confirm Password">
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={form.confirmPassword}
-              onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-              required
-            />
-          </FormField>
-          <Btn variant="primary" fullWidth type="submit" disabled={loading} style={{ marginTop: 8 }}>
-            {loading ? <Spinner size={16} /> : "Reset Password"}
-          </Btn>
-        </form>
-      ) : null}
-    </AuthLayout>
-  );
+  async function submit(event) {
+    event.preventDefault(); if (loading || !token) return;
+    if (password !== confirmation) { setError("The passwords don’t match. Please check both fields."); return; }
+    if (password.length < 8) { setError("Use at least 8 characters."); return; }
+    setLoading(true); setError(null);
+    try { const result = await onReset(token, password); if (result.success) setSuccess(true); else setError(result.message || "Could not reset your password. Try requesting a new link."); }
+    catch { setError("Could not reset your password. Try again."); }
+    finally { setLoading(false); }
+  }
+  return <AuthLayout title={success ? "Your password is updated." : "Choose a new password."} subtitle={success ? "You can now sign in with your new password." : "Use at least 8 characters and a password you don’t use elsewhere."}>
+    <Alert message={error} />
+    {!token ? <div className="context-note">This reset link is incomplete. Request a new link to continue.<button className="text-link mt-3" onClick={() => navigate("/forgot-password")}>Request a new reset link →</button></div> : success ? <Btn fullWidth onClick={() => navigate(signInPath)}>Continue to sign in</Btn> : <form onSubmit={submit} aria-busy={loading}>
+      <FormField label="New password"><input type={visible ? "text" : "password"} autoComplete="new-password" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required /></FormField>
+      <FormField label="Confirm new password"><input type={visible ? "text" : "password"} autoComplete="new-password" minLength={8} value={confirmation} onChange={event => setConfirmation(event.target.value)} required /></FormField>
+      <button className="text-link mb-4" type="button" aria-pressed={visible} onClick={() => setVisible(!visible)}>{visible ? "Hide passwords" : "Show passwords"}</button><Btn fullWidth type="submit" disabled={loading}>{loading ? "Updating…" : "Update password"}</Btn>
+    </form>}
+    {!success && <button className="text-link mt-6" onClick={() => navigate(signInPath)}>← Back to sign in</button>}
+  </AuthLayout>;
 }

@@ -78,7 +78,7 @@ describe("AuthPage — email verification gating (Phase 3)", () => {
     // Before switching tabs, only the tab-switcher button has this label.
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
-    fireEvent.change(screen.getByPlaceholderText("Jane Smith"), { target: { value: "New User" } });
+    fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "New User" } });
     fireEvent.change(screen.getByPlaceholderText("you@example.com"), { target: { value: "newuser@example.com" } });
     fireEvent.change(screen.getByPlaceholderText("••••••••"), { target: { value: "password123" } });
     // Now both the tab button and the submit button share this label — the
@@ -91,4 +91,19 @@ describe("AuthPage — email verification gating (Phase 3)", () => {
     expect(screen.getByText("Resend verification email")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("••••••••")).toBeInTheDocument();
   });
+});
+
+it("registers the selected recruiter intent and allows password visibility", async () => {
+  mockAuthRegister.mockResolvedValue({ success: true, message: "Verify your email.", data: { needsVerification: true } });
+  renderAuthPage();
+  fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+  fireEvent.click(screen.getByRole("button", { name: /Hire people/ }));
+  fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Hiring Lead" } });
+  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "lead@example.com" } });
+  const password = screen.getByLabelText(/PasswordAt least/);
+  fireEvent.change(password, { target: { value: "password123" } });
+  fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+  expect(password).toHaveAttribute("type", "text");
+  fireEvent.submit(password.closest("form"));
+  await waitFor(() => expect(mockAuthRegister).toHaveBeenCalledWith({ fullName: "Hiring Lead", email: "lead@example.com", password: "password123", role: "recruiter" }));
 });
