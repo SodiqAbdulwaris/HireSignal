@@ -25,32 +25,21 @@ if (process.env.NODE_ENV === 'production' && config.aiServiceUrl.includes('local
 }
 
 // 1. CORS Configuration
-// FRONTEND_URL supports one URL. FRONTEND_URLS supports comma-separated URLs.
-const normalizeOrigin = (origin) => origin.trim().replace(/\/$/, '');
-
-const envOrigins = [
-  process.env.FRONTEND_URL,
-  ...(process.env.FRONTEND_URLS || '').split(','),
-];
-
-const allowedOrigins = [
-  ...envOrigins,
-  'http://localhost:5173',
-  'http://localhost:3000',
-].filter(Boolean).map(normalizeOrigin);
+// The allowlist comes exclusively from the validated environment configuration.
+const allowedOrigins = config.allowedOrigins;
 
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, or postman)
     if (!origin) return callback(null, true);
 
-    const normalizedOrigin = normalizeOrigin(origin);
+    const normalizedOrigin = origin.trim().replace(/\/$/, '');
 
     if (allowedOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
 
-    console.warn(`[CORS] Rejected origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
+    console.warn(`[CORS] Rejected origin: ${origin}`);
     return callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,

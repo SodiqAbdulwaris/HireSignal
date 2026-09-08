@@ -16,13 +16,19 @@ function signAccessToken(user) {
   );
 }
 
+function buildVerificationLink(verificationToken) {
+  const link = new URL('/verify-email', config.frontendUrl);
+  link.searchParams.set('token', verificationToken);
+  return link.toString();
+}
+
 function sendVerificationEmail(user) {
   const verificationToken = jwt.sign(
     { userId: user._id, purpose: 'email-verification' },
     config.jwtSecret,
     { expiresIn: '24h' }
   );
-  const verifyLink = `${config.frontendUrl}/verify-email?token=${verificationToken}`;
+  const verifyLink = buildVerificationLink(verificationToken);
 
   return sendEmail({
     to: user.email,
@@ -54,11 +60,10 @@ async function generateAndSetRefreshToken(res, userId) {
     expiresAt,
   });
 
-  const isProduction = process.env.NODE_ENV === 'production';
   res.cookie('refreshToken', rawToken, {
     httpOnly: true,
-    sameSite: 'strict',
-    secure: isProduction,
+    sameSite: config.authCookieSameSite,
+    secure: config.authCookieSecure,
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 
@@ -269,8 +274,8 @@ async function logout(req, res, next) {
     }
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: config.authCookieSameSite,
+      secure: config.authCookieSecure,
     });
     return res.json({
       success: true,
@@ -311,8 +316,8 @@ async function deleteMyAccount(req, res, next) {
     await RefreshToken.deleteMany({ userId: req.user._id });
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: config.authCookieSameSite,
+      secure: config.authCookieSecure,
     });
 
     return res.json({
@@ -511,6 +516,7 @@ async function resetPassword(req, res, next) {
 }
 
 module.exports = {
+  buildVerificationLink,
   register,
   login,
   logout,

@@ -93,7 +93,7 @@ async function sendEmail({ to, subject, text, html, replyTo }) {
   console.log(text);
   console.log('==================================================\n');
 
-  return { success: true, messageId: 'console-log' };
+  return { success: true, messageId: 'console-log', delivery: 'console' };
 }
 
 module.exports = {
