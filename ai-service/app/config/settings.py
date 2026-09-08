@@ -18,9 +18,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Database
-    MONGO_URI: str
-
     # Ports
     AI_SERVICE_PORT: int = 8000
 

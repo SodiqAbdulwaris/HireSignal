@@ -1,4 +1,3 @@
-import os
 import sys
 import types
 from pathlib import Path
@@ -7,11 +6,6 @@ import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-# app.config.settings.Settings requires MONGO_URI with no default — tests never
-# touch Mongo, but importing the settings module (transitively, via
-# ai_parse_service) still needs this set.
-os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017/test-placeholder")
 
 # Every test in this suite injects a FakeEmbeddingService instead of loading a
 # real model, so sentence-transformers' actual model weights are never needed.
