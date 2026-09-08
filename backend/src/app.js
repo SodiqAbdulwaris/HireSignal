@@ -24,6 +24,14 @@ if (process.env.NODE_ENV === 'production' && config.aiServiceUrl.includes('local
   console.warn('[Config] AI_SERVICE_URL points to localhost in production. Resume parsing will fail unless the AI service runs in the same container.');
 }
 
+if (process.env.NODE_ENV === 'production' && config.frontendUrl.includes('app.example.com')) {
+  console.warn('[Config] FRONTEND_URL still looks like the placeholder value. Verification and password-reset links will point to a domain nobody owns until this is replaced with the real public frontend origin.');
+}
+
+if (process.env.NODE_ENV === 'production' && config.authCookieSameSite === 'none') {
+  console.warn('[Config] AUTH_COOKIE_SAME_SITE=none means the frontend and this API are on different sites — refresh-token cookies depend on the browser accepting a cross-site Secure cookie. This is known to work in Chromium but has NOT been verified in Safari/Firefox against the real production origins (see review/backend/2026-09-08-full-review/Concerns/cross-site-session-deployment.md). Prefer a same-site topology if one is available; otherwise test sign-in and silent refresh in Chrome, Safari, and Firefox against the real public URLs before relying on this.');
+}
+
 // 1. CORS Configuration
 // The allowlist comes exclusively from the validated environment configuration.
 const allowedOrigins = config.allowedOrigins;
