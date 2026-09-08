@@ -5,6 +5,32 @@ const config = require('../config/env');
 let transporter = null;
 let resendClient = null;
 
+// No metrics/alerting stack exists in this codebase yet — this in-process
+// counter is a minimal, dependency-free way to make repeated delivery
+// failures visible to log-based alerting, rather than each failure logging
+// identically to a one-off blip. Resets to zero on any successful send.
+const REPEATED_FAILURE_THRESHOLD = 3;
+let consecutiveFailures = 0;
+
+function recordDeliveryOutcome(succeeded, provider) {
+  if (succeeded) {
+    consecutiveFailures = 0;
+    return;
+  }
+  consecutiveFailures += 1;
+  if (consecutiveFailures >= REPEATED_FAILURE_THRESHOLD) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event: 'email_delivery_repeated_failure',
+        provider,
+        consecutiveFailures,
+        message: `${consecutiveFailures} consecutive email delivery failures via ${provider}`,
+      })
+    );
+  }
+}
+
 // Initialize clients based on available configurations (Resend takes priority in production)
 if (config.resendApiKey) {
   console.log('📧 Email Service: Resend Configured.');
@@ -55,11 +81,14 @@ async function sendEmail({ to, subject, text, html, replyTo }) {
 
       if (error) {
         console.error('❌ Resend API email send failure:', error);
+        recordDeliveryOutcome(false, 'resend');
         return { success: false, error };
       }
+      recordDeliveryOutcome(true, 'resend');
       return { success: true, messageId: data?.id };
     } catch (err) {
       console.error('❌ Resend email send exception:', err);
+      recordDeliveryOutcome(false, 'resend');
       throw err;
     }
   }
@@ -75,9 +104,11 @@ async function sendEmail({ to, subject, text, html, replyTo }) {
         html,
         replyTo,
       });
+      recordDeliveryOutcome(true, 'smtp');
       return { success: true, messageId: info.messageId };
     } catch (err) {
       console.error('❌ SMTP Email send failure:', err);
+      recordDeliveryOutcome(false, 'smtp');
       throw err;
     }
   }
@@ -98,4 +129,8 @@ async function sendEmail({ to, subject, text, html, replyTo }) {
 
 module.exports = {
   sendEmail,
+  // Exported for direct unit testing of the failure-counting logic —
+  // the actual provider branches are hard to exercise without a live
+  // (or heavily mocked) SMTP/Resend client.
+  recordDeliveryOutcome,
 };

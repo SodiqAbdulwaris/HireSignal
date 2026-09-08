@@ -3,7 +3,7 @@ const path = require('path');
 const app = require('../src/app');
 const config = require('../src/config/env');
 const { buildVerificationLink } = require('../src/controllers/auth.controller');
-const { sendEmail } = require('../src/services/email.service');
+const { sendEmail, recordDeliveryOutcome } = require('../src/services/email.service');
 
 describe('environment-driven browser access', () => {
   it('selects only the APP_ENV-slugged file', () => {
@@ -49,5 +49,27 @@ describe('verification delivery', () => {
     expect(result).toEqual(expect.objectContaining({ success: true, delivery: 'console' }));
     expect(logSpy.mock.calls.flat().join(' ')).toContain('verify-email?token=test-token');
     logSpy.mockRestore();
+  });
+
+  it('logs a structured warning once failures reach the repeated-failure threshold', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    recordDeliveryOutcome(false, 'smtp');
+    recordDeliveryOutcome(false, 'smtp');
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    recordDeliveryOutcome(false, 'smtp');
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    const logged = JSON.parse(errorSpy.mock.calls[0][0]);
+    expect(logged).toEqual(
+      expect.objectContaining({ event: 'email_delivery_repeated_failure', provider: 'smtp', consecutiveFailures: 3 })
+    );
+
+    recordDeliveryOutcome(true, 'smtp');
+    recordDeliveryOutcome(false, 'smtp');
+    recordDeliveryOutcome(false, 'smtp');
+    expect(errorSpy).toHaveBeenCalledTimes(1); // a success in between resets the streak
+
+    errorSpy.mockRestore();
   });
 });
