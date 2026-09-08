@@ -7,3 +7,10 @@
 **Recommendation:** Keep public responses generic, but add structured delivery metrics/logs and alerting for repeated provider failures. Retain terminal delivery only for explicitly local environments.
 
 **Owner:** product/security and operations.
+
+**Status (2026-09-08): Resolved.** Added an in-process consecutive-
+failure counter (`email.service.js`) that logs a structured, greppable
+warning once failures cross a threshold, resetting on the next
+success — gives log-based alerting something to watch for, with no new
+dependency. Public responses remain generic, per this decision's own
+recommendation. Verified with a dedicated unit test.

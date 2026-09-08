@@ -68,6 +68,28 @@ built, tested (backend Jest + frontend Vitest), and verified live
 against a real MongoDB. Full writeup:
 [decisions/2026-09-06-phases-f1-f4-features.md](decisions/2026-09-06-phases-f1-f4-features.md).
 
+## Full system review and live verification — 2026-09-08
+
+Ran the full stack live (real local MongoDB, real embedding model, a real
+browser) and audited every service. Full findings, cross-referenced by
+priority: [../review/README.md](../review/README.md). Five High-priority
+issues total across backend/AI-service/frontend/system, two of them
+live-reproduced during this session (an auth-form state-leak that can
+silently corrupt a user's password, and a matching-explanation bug that
+shows a negative signal as if it supports the match). None of the visual
+redesign was touched — this is purely audit + documentation.
+
+**Follow-up (same day):** every finding across all four reviews got a
+code fix, each in its own small commit and verified with tests (backend
+45, ai-service 35, frontend 41 — all passing). Writing the recommended
+`apiCall` refresh-interceptor tests surfaced a second real bug beyond
+what the static review found: the request that triggers a token refresh
+never got retried after a successful refresh, a deadlock fixed alongside
+the coverage. One item — the backend's `express`→`qs` dependency chain —
+is deliberately deferred, since resolving it needs an Express 5
+migration, a real breaking change warranting its own pass. Status notes
+on every individual finding: [../review/README.md](../review/README.md).
+
 ## Hardware safety (standing constraint for this whole session)
 
 Checked before touching any local tool: AMD Ryzen AI 9 365 (10c/20t), 32GB RAM (11.6GB free at session start), NVIDIA RTX 5060 Laptop (8GB VRAM). Rule adopted and followed throughout: **only one local (GPU-resident) model loaded at a time, ever** — cloud-backed CLI tools (opencode, cursor-agent, agy) may run concurrently since their inference happens on remote servers, not this laptop. Full reasoning in [decisions/2026-09-05-five-variant-plan.md](decisions/2026-09-05-five-variant-plan.md).

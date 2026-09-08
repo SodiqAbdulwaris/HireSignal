@@ -1,0 +1,7 @@
+# Observation — responsive behavior and accessibility basics are genuinely implemented
+
+`frontend/src/styles/global.css` has real breakpoint behavior rather than cosmetic media queries: the 700px breakpoint switches list/detail layouts to a single column and toggles which pane is visible via `.show-detail` (`browse-layout`, `review-layout`), restores a "back" control (`.detail-back`), and bumps form control font size to 16px to avoid iOS auto-zoom. Interactive controls consistently target a 44px minimum height on mobile (`[data-slot="button"]`, `.app-tabs button`, `.stage-filters button`, `.account-menu summary`), matching the touch-target goal in `redesign-notes/clear-precise/plan.md`. `prefers-reduced-motion: reduce` is respected globally.
+
+The custom shadcn wrapper components (`components/ui/shadcn/dialog.jsx`, `dropdown-menu.jsx`, `select.jsx`) import icons correctly from the declared `@radix-ui/react-icons` dependency — no leftover `next/` imports or broken icon references were found, which the task described as a known historical issue in this codebase. A skip-link (`.skip-link` in `Nav.jsx`) and a labeled `#main-content` landmark are present on every screen checked.
+
+Spot contrast checks on the Graphite palette (`--muted-foreground` on `--background` in both themes, `--primary-foreground` on `--primary`, `--destructive`-related pairs) computed comfortably above the WCAG AA 4.5:1 threshold for body text.
