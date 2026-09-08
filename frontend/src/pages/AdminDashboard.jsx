@@ -19,7 +19,7 @@ import SkeletonBlock from "../components/ui/SkeletonBlock";
 
 const TD = "whitespace-nowrap border-b border-border px-3 py-2.5 text-[13px]";
 
-function StatsGrid({ stats }) {
+export function StatsGrid({ stats }) {
   const cards = [
     { label: "Candidates", value: stats.totalCandidates },
     { label: "Recruiters", value: stats.totalRecruiters },
@@ -29,9 +29,9 @@ function StatsGrid({ stats }) {
     { label: "Match results", value: stats.totalMatches },
   ];
   return (
-    <div className="mb-8 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+    <div className="admin-metrics">
       {cards.map((c) => (
-        <div key={c.label} className="rounded-[14px] border border-border bg-card p-5">
+        <div key={c.label} className="admin-metric">
           <div className="mb-1 text-xs text-muted-foreground">{c.label}</div>
           <div className="text-[22px] font-bold text-foreground">{c.value}</div>
         </div>
@@ -70,10 +70,10 @@ function UsersTab({ token }) {
   if (loading) return <SkeletonBlock height={200} />;
 
   return (
-    <div className="rounded-[14px] border border-border bg-card p-6">
+    <div className="rounded-lg border border-border bg-card p-6">
       <Alert message={error} variant="error" />
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse admin-table">
           <thead>
             <tr>
               {["Name", "Email", "Role", "Status", "Joined", ""].map((h) => (
@@ -82,6 +82,7 @@ function UsersTab({ token }) {
             </tr>
           </thead>
           <tbody>
+            {!users.length && <tr><td colSpan={6} className="p-6 text-sm text-muted-foreground">No accounts to display.</td></tr>}
             {users.map((u) => (
               <tr key={u._id}>
                 <td className={TD}>{u.fullName}</td>
@@ -132,7 +133,7 @@ function JobsTab({ token }) {
   if (loading) return <SkeletonBlock height={200} />;
 
   return (
-    <div className="rounded-[14px] border border-border bg-card p-6">
+    <div className="rounded-lg border border-border bg-card p-6">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
@@ -143,6 +144,7 @@ function JobsTab({ token }) {
             </tr>
           </thead>
           <tbody>
+            {!jobs.length && <tr><td colSpan={5} className="p-6 text-sm text-muted-foreground">No roles to display.</td></tr>}
             {jobs.map((j) => (
               <tr key={j._id}>
                 <td className={TD}>{j.title}</td>
@@ -167,7 +169,7 @@ function JobsTab({ token }) {
 const WEIGHT_FIELDS = [
   { key: "skills", label: "Skills" },
   { key: "experience", label: "Experience" },
-  { key: "semantic", label: "Semantic similarity" },
+  { key: "semantic", label: "Resume relevance" },
   { key: "education", label: "Education" },
 ];
 
@@ -194,32 +196,33 @@ function SettingsTab({ token }) {
     setSaving(true); setError(null); setSuccess(null);
     const r = await updateAdminSettings(weights, token);
     setSaving(false);
-    if (r.success) setSuccess("Default weights updated.");
+    if (r.success) setSuccess("Platform matching defaults updated.");
     else setError(r.message);
   };
 
   if (loading) return <SkeletonBlock height={200} />;
+  if (!weights) return <Alert message={error || "Matching settings are unavailable."} />;
 
   return (
-    <div className="max-w-[480px] rounded-[14px] border border-border bg-card p-6">
-      <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Default matching weights</div>
+    <div className="max-w-[600px] rounded-lg border border-border bg-card p-6">
+      <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Platform matching defaults</div>
       <p className="mb-4 text-xs text-muted-foreground">
-        Used for any job that doesn't set its own weight override. Must sum to 1.0.
+        Applies to roles using standard matching. Set each area’s share of the score; the total must be 100%. Role-specific settings take precedence.
       </p>
       <Alert message={error} variant="error" />
       <Alert message={success} variant="success" />
       {WEIGHT_FIELDS.map((f) => (
         <div key={f.key} className="mb-3">
-          <label className="mb-1 block text-xs text-muted-foreground">{f.label}</label>
+          <label htmlFor={`default-${f.key}`} className="mb-1 block text-sm text-muted-foreground">{f.label} (%)</label>
           <input
-            type="number" step="0.05" min="0" max="1"
-            value={weights[f.key]}
-            onChange={(e) => setWeights((w) => ({ ...w, [f.key]: parseFloat(e.target.value) || 0 }))}
+            id={`default-${f.key}`} type="number" step="1" min="0" max="100"
+            value={Number((weights[f.key] * 100).toFixed(2))}
+            onChange={(e) => setWeights((w) => ({ ...w, [f.key]: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) / 100 }))}
           />
         </div>
       ))}
       <div className={`mb-4 text-xs ${sumOk ? "text-muted-foreground" : "text-red-500"}`}>
-        Sum: {sum.toFixed(2)} {!sumOk && "— must equal 1.00"}
+        Total: {(sum * 100).toFixed(0)}% {!sumOk && "— adjust the shares to reach 100%"}
       </div>
       <Btn variant="primary" onClick={save} disabled={saving || !sumOk}>
         {saving ? "Saving…" : "Save defaults"}
@@ -250,8 +253,8 @@ export default function AdminDashboard({ onContactClick }) {
   return (
     <div>
       <Nav onContactClick={onContactClick} />
-      <div className="px-4 pb-16 pt-6 sm:px-8">
-        <PageHeader title="Admin Dashboard" subtitle="Platform-wide users, jobs, and matching defaults." />
+      <div id="main-content" role="main" tabIndex={-1} className="app-main">
+        <PageHeader title="Platform overview" subtitle="Manage accounts, monitor roles, and maintain matching settings." />
         <div className="overflow-x-auto">
           <Tabs tabs={tabDefs} active={tab} onChange={setTab} />
         </div>
