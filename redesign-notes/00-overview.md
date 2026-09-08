@@ -28,18 +28,35 @@ The user explicitly asked for everything logged and documented (they're not avai
 - **`variants/`** — one file per UI variant, updated as each build completes: brief given, what the tool actually produced, how it was verified, any issues found.
 - **`research/`** — any external research consulted (web searches, the `ui-ux-pro-max` skill's data lookups) that informed a decision, kept separate from the decisions themselves so a decision file stays short and a research trail stays inspectable.
 
-## Frontend v2 — 18-variant round — 2026-09-06
+## Frontend v2 — 18-variant round — 2026-09-06 (superseded, deleted)
 
-All 18 variants from
+18 variants from
 [decisions/2026-09-06-frontend-v2-multi-variant-plan.md](decisions/2026-09-06-frontend-v2-multi-variant-plan.md)
-are built, committed, and documented in `variants/v2-*.md`. Each lives in
-its own worktree under `../hiresignal-worktrees-v2/<name>/` on branch
-`frontend-v2/<name>`, off `main`, touching only the visual/component
-layer of 4 representative screens (Auth, a dashboard, PostJobView,
-Match/Pipeline) against the real, unmodified backend. None merged into
-`main` — that's a decision for the user once they've compared them.
+were built as 4-screen samples across different visual-philosophy
+skills and component libraries. The user reviewed all 18 and rejected
+nearly all of them; three (minimalist, stitch, scandinavian) were
+liked partially but not fully. Superseded by the Graphite direction
+below, built separately via Codex. All 18 branches/worktrees (and an
+in-progress 19th, `frontend-v2/skeletal`, a "no component library at
+all" take that never finished) were deleted 2026-09-08 — their
+`variants/v2-*.md` writeups remain here as a record of what was tried
+and rejected, but the code itself no longer exists in this repo.
 
-To run one: `cd ../hiresignal-worktrees-v2/<name>/frontend && npm run dev`.
+## Clear and precise / Graphite — shipped, on `main` — 2026-09-07/08
+
+While this session was rate-limited over the weekend, the user worked
+with a different agent (Codex, branch `codex/frontend-redesign`) on
+the same "skeletal, bare minimum" brief via a different path: a
+reviewed prototype first, then full production implementation across
+every screen, keeping the existing shadcn/Tailwind stack but
+restyling to a neutral **Graphite** palette (`#FAFAFA`/`#171717`
+canvas, `#262626`/`#EBEBEB` primary, grayscale everywhere) plus real
+UX rework (plain-language job matching, evidence-first candidate
+review, simplified auth/recovery). Full iteration history in
+[clear-precise/plan.md](clear-precise/plan.md). Fast-forward merged
+into `main`. Verified 2026-09-08: `npm run build` clean, `npx vitest
+run` — 7 files / 22 tests passing. This is the current shipped
+direction — round 1 and round 2 above are historical record only.
 
 ## New-feature phases (F1-F4) — 2026-09-06
 
