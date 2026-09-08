@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { SunIcon, MoonIcon, TrashIcon } from "@radix-ui/react-icons";
-import Avatar from "../ui/Avatar";
+import { SunIcon, MoonIcon } from "@radix-ui/react-icons";
 import Btn from "../ui/Btn";
 import Alert from "../ui/Alert";
 import Modal from "../ui/Modal";
@@ -57,12 +56,9 @@ export default function Nav({ onContactClick }) {
       className="sticky top-0 z-[200] flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border px-4 py-3 backdrop-blur-md sm:px-8 sm:py-3.5"
       style={{ background: "color-mix(in srgb, var(--background) 90%, transparent)" }}
     >
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <div className="flex items-center gap-2.5">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] bg-primary">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M2 4h10M2 7h7M2 10h5" stroke="var(--primary-foreground)" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </div>
+        <span className="brand-mark" aria-hidden="true" />
         <span className="text-xl font-bold tracking-tight text-foreground">HireSignal</span>
         {user && (
           <span className="ml-1 rounded-full bg-accent px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
@@ -87,22 +83,7 @@ export default function Nav({ onContactClick }) {
 
         {user && (
           <>
-            <Avatar name={user.fullName} size={32} />
-            <div className="hidden leading-tight md:block">
-              <div className="text-sm font-medium">{user.fullName}</div>
-              <div className="text-xs text-muted-foreground">{user.email}</div>
-            </div>
-            <Btn
-              variant="ghost"
-              size="sm"
-              className="px-2 text-muted-foreground hover:text-red-500"
-              onClick={() => setShowDelete(true)}
-              aria-label="Delete account"
-              title="Delete account"
-            >
-              <TrashIcon />
-            </Btn>
-            <Btn variant="secondary" size="sm" onClick={logout}>Sign out</Btn>
+            <details className="account-menu"><summary>Account</summary><div><div className="page-eyebrow mb-3">Your account</div><p className="break-words text-sm font-medium">{user.fullName}</p><p className="mb-4 break-words text-xs text-muted-foreground">{user.email}</p><p className="mb-4 text-xs text-muted-foreground">{roleLabel} workspace</p><div className="flex flex-col gap-2"><Btn variant="secondary" size="sm" onClick={logout}>Sign out</Btn><Btn variant="ghost" size="sm" onClick={() => setShowDelete(true)}>Delete account</Btn></div></div></details>
           </>
         )}
       </div>
