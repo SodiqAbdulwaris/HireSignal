@@ -160,7 +160,7 @@ def score_candidate(
         + edu_score * weights["education"]
     )
 
-    reasons = build_explanations(
+    supporting_reasons, concerns = build_explanations(
         candidate=candidate,
         matched_skills=list(matched_required),
         missing_skills=list(missing_required),
@@ -173,7 +173,8 @@ def score_candidate(
     summary = generate_readable_summary(
         full_name=candidate.full_name,
         total_score=total,
-        reasons=reasons,
+        supporting_reasons=supporting_reasons,
+        concerns=concerns,
     )
 
     return RankedCandidate(
@@ -188,6 +189,7 @@ def score_candidate(
             semantic_score=round(semantic, 3),
             education_score=round(edu_score, 3),
         ),
-        reasons=reasons,
+        supporting_reasons=supporting_reasons,
+        concerns=concerns,
         readable_summary=summary,
     )

@@ -6,46 +6,53 @@ def build_explanations(
     experience_score: float,
     semantic_score: float,
     education_score: float,
-) -> list[str]:
-    reasons = []
+) -> tuple[list[str], list[str]]:
+    """Returns (supporting_reasons, concerns) as two separate lists, never
+    one mixed list — a candidate can score well overall while still having
+    one weak sub-score, and that weak point must never render under a
+    "what supports this match" heading."""
+    supporting_reasons = []
+    concerns = []
 
     # Skills Evaluation (Grouped context)
     if skills_score >= 0.8:
-        reasons.append("Demonstrates a strong skills match for the role")
+        supporting_reasons.append("Demonstrates a strong skills match for the role")
     elif skills_score < 0.5:
-        reasons.append("Shows weak skills alignment with the job requirements")
-        
+        concerns.append("Shows weak skills alignment with the job requirements")
+
     if matched_skills:
-        reasons.append(f"possesses key skills like {', '.join(sorted(matched_skills))}")
+        supporting_reasons.append(f"possesses key skills like {', '.join(sorted(matched_skills))}")
     if missing_skills:
-        reasons.append(f"is missing requested skills such as {', '.join(sorted(missing_skills))}")
+        concerns.append(f"is missing requested skills such as {', '.join(sorted(missing_skills))}")
 
     # Experience
     if experience_score == 1.0:
-        reasons.append("meets or exceeds the required experience")
+        supporting_reasons.append("meets or exceeds the required experience")
     elif experience_score < 0.7:
-        reasons.append("falls below the required experience level")
+        concerns.append("falls below the required experience level")
 
     # Semantic
     if semantic_score >= 0.8:
-        reasons.append("has a background highly relevant to the job description")
+        supporting_reasons.append("has a background highly relevant to the job description")
     elif semantic_score < 0.5:
-        reasons.append("shows low contextual relevance to the role")
+        concerns.append("shows low contextual relevance to the role")
 
     # Education
     if education_score == 1.0:
-        reasons.append("satisfies the education requirements")
+        supporting_reasons.append("satisfies the education requirements")
     elif education_score < 0.7:
-        reasons.append("does not fully meet the requested education level")
+        concerns.append("does not fully meet the requested education level")
 
-    return reasons
+    return supporting_reasons, concerns
 
 
 def generate_readable_summary(
     full_name: str | None,
     total_score: float,
-    reasons: list[str],
+    supporting_reasons: list[str],
+    concerns: list[str],
 ) -> str:
+    reasons = supporting_reasons + concerns
     name = full_name or "The candidate"
 
     if total_score >= 0.8:

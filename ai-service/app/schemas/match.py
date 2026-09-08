@@ -47,7 +47,8 @@ class RankedCandidate(BaseModel):
     matched_skills: list[str] = Field(default_factory=list)
     missing_skills: list[str] = Field(default_factory=list)
     score_breakdown: ScoreBreakdown
-    reasons: list[str] = Field(default_factory=list)
+    supporting_reasons: list[str] = Field(default_factory=list)
+    concerns: list[str] = Field(default_factory=list)
     readable_summary: Optional[str] = None
 
 class MatchResponse(BaseModel):

@@ -125,7 +125,8 @@ function aiRankedCandidateToMatchResult(ranked, position) {
       semantic: breakdown.semantic_score ?? null,
     },
     explanation: ranked.readable_summary ?? null,
-    reasons: ranked.reasons || [],
+    supportingReasons: ranked.supporting_reasons || [],
+    concerns: ranked.concerns || [],
   };
 }
 
