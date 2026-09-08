@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     # Ports
     AI_SERVICE_PORT: int = 8000
 
+    # Shared secret required on the X-Service-Key header of every request to
+    # /parse/ and /match/, when set. Empty/unset means no check is enforced —
+    # fine for local dev, but this should be set wherever the service is
+    # reachable from anywhere other than the trusted backend.
+    AI_SERVICE_API_KEY: Optional[str] = None
+
     # Service URL
     AI_SERVICE_URL: str = "http://localhost:8000"
 

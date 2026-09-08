@@ -48,6 +48,7 @@ const envSchema = z.object({
     return `https://${trimmed}`;
   }).default('http://localhost:8000'),
   AI_SERVICE_TIMEOUT_MS: z.string().transform((val) => parseInt(val, 10)).default('30000'),
+  AI_SERVICE_API_KEY: z.string().optional(),
   MAX_FILE_SIZE_BYTES: z.string().transform((val) => parseInt(val, 10)).default('5242880'),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
@@ -85,6 +86,7 @@ const config = {
   jwtSecret: env.JWT_SECRET,
   aiServiceUrl: env.AI_SERVICE_URL,
   aiServiceTimeoutMs: env.AI_SERVICE_TIMEOUT_MS,
+  aiServiceApiKey: env.AI_SERVICE_API_KEY,
   maxFileSizeBytes: env.MAX_FILE_SIZE_BYTES,
   resendApiKey: env.RESEND_API_KEY,
   resendFromEmail: env.RESEND_FROM_EMAIL,

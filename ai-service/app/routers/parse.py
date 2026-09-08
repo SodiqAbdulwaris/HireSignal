@@ -1,11 +1,12 @@
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.config.settings import get_settings
+from app.core.auth import require_service_key
 from app.core.exceptions import FileTooLargeError
 from app.schemas.resume import ParsedCandidate
 from app.services.parse_service import parse_resume_service
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_service_key)])
 settings = get_settings()
 
 

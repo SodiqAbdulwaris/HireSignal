@@ -5,6 +5,7 @@ const config = require('../config/env');
 const client = axios.create({
   baseURL: config.aiServiceUrl,
   timeout: config.aiServiceTimeoutMs,
+  headers: config.aiServiceApiKey ? { 'X-Service-Key': config.aiServiceApiKey } : {},
 });
 
 /**

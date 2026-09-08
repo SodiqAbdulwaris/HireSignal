@@ -4,6 +4,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -47,3 +50,19 @@ class FakeEmbeddingService:
 @pytest.fixture
 def fake_embedding_service():
     return FakeEmbeddingService()
+
+
+def make_router_test_client(router):
+    """A minimal FastAPI app mounting one router, with the same AppException
+    -> 400 handling app.main registers, so router-level tests get real HTTP
+    responses instead of raised exceptions for expected app-level errors."""
+    from app.core.exceptions import AppException
+
+    app = FastAPI()
+    app.include_router(router)
+
+    @app.exception_handler(AppException)
+    async def app_exception_handler(request, exc):
+        return JSONResponse(status_code=400, content={"message": exc.message})
+
+    return TestClient(app)

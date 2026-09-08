@@ -1,26 +1,10 @@
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-from app.core.exceptions import AppException
 from app.routers.parse import router as parse_router
 from app.config.settings import get_settings
-
-
-def _make_client():
-    app = FastAPI()
-    app.include_router(parse_router)
-
-    @app.exception_handler(AppException)
-    async def app_exception_handler(request, exc):
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(status_code=400, content={"message": exc.message})
-
-    return TestClient(app)
+from tests.conftest import make_router_test_client
 
 
 def test_oversized_upload_is_rejected_without_reading_it_whole():
-    client = _make_client()
+    client = make_router_test_client(parse_router)
     max_bytes = get_settings().MAX_FILE_SIZE_MB * 1024 * 1024
     oversized = b"x" * (max_bytes + 1024)
 
