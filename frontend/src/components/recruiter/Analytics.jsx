@@ -1,73 +1,35 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { getRecruiterAnalytics } from "../../lib/api";
-import StatCard from "../ui/StatCard";
-import SkeletonBlock from "../ui/SkeletonBlock";
+import { APPLICATION_STAGES } from "../../lib/applicationStages";
+import Alert from "../ui/Alert";
+import Btn from "../ui/Btn";
 
-const FUNNEL_STAGES = [
-  { key: "pending", label: "Pending", color: "#f59e0b" },
-  { key: "reviewed", label: "Reviewed", color: "#3b82f6" },
-  { key: "shortlisted", label: "Shortlisted", color: "#22c55e" },
-  { key: "rejected", label: "Rejected", color: "#ef4444" },
-];
-
-function Bar({ label, count, max, color }) {
-  const pct = max > 0 ? Math.round((count / max) * 100) : 0;
-  return (
-    <div className="mb-3">
-      <div className="mb-1 flex items-center justify-between text-[13px]">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium text-foreground">{count}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-secondary">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
-  );
+function Distribution({ rows }) {
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  return <div>{rows.map(row => <div className="distribution-row" key={row.label}><div><span>{row.label}</span><strong>{row.count}</strong></div><div className="distribution-track" aria-hidden="true"><div style={{ width: `${total ? row.count / total * 100 : 0}%` }} /></div></div>)}</div>;
 }
-
+export function AnalyticsSummary({ data }) {
+  const scores = data.scoreDistribution || [];
+  const matchedCount = scores.reduce((sum, bucket) => sum + bucket.count, 0);
+  return <section aria-label="Hiring activity">
+    <div className="metric-strip"><div><span>Total roles</span><strong>{data.totalJobs}</strong><p>All roles you have posted</p></div><div><span>Open roles</span><strong>{data.openJobs}</strong><p>Currently accepting applications</p></div><div><span>Applications</span><strong>{data.totalApplications}</strong><p>Across your roles</p></div></div>
+    <div className="analytics-grid"><section className="analysis-panel"><div className="page-eyebrow">Current positions</div><h2>Applications by stage</h2><p>Where applications stand now. These are current counts, not conversion rates.</p><Distribution rows={APPLICATION_STAGES.map(stage => ({ label: stage.label, count: data.funnel?.[stage.key] || 0 }))} />{!data.totalApplications && <p>No applications yet. Counts will appear as candidates apply.</p>}</section><section className="analysis-panel"><div className="page-eyebrow">Matching results</div><h2>How scores are distributed</h2><p>{matchedCount} scored results. Scores describe alignment with role requirements, not hiring outcomes.</p><Distribution rows={scores} />{!matchedCount && <p>No scored results yet. Run matching for a role to populate this view.</p>}</section></div>
+  </section>;
+}
 export default function Analytics() {
   const { token } = useOutletContext();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      const r = await getRecruiterAnalytics(token);
-      if (r.success) setData(r.data);
-      setLoading(false);
-    })();
+  const [error, setError] = useState(null);
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try { const result = await getRecruiterAnalytics(token); if (result.success) setData(result.data); else setError(result.message || "Could not load analytics."); }
+    catch { setError("Could not load analytics. Try again."); }
+    finally { setLoading(false); }
   }, [token]);
-
-  if (loading) return <SkeletonBlock height={240} />;
-  if (!data) return <p className="text-[13px] text-muted-foreground">Analytics unavailable right now.</p>;
-
-  const funnelMax = Math.max(1, ...FUNNEL_STAGES.map((s) => data.funnel[s.key] || 0));
-  const scoreMax = Math.max(1, ...data.scoreDistribution.map((b) => b.count));
-
-  return (
-    <div>
-      <div className="fade-up mb-6 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
-        <StatCard label="Total Jobs" value={data.totalJobs} />
-        <StatCard label="Open Roles" value={data.openJobs} />
-        <StatCard label="Applications" value={data.totalApplications} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="fade-up rounded-[14px] border border-border bg-card p-6">
-          <div className="mb-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Applicant funnel</div>
-          {FUNNEL_STAGES.map((s) => (
-            <Bar key={s.key} label={s.label} count={data.funnel[s.key] || 0} max={funnelMax} color={s.color} />
-          ))}
-        </div>
-
-        <div className="fade-up-2 rounded-[14px] border border-border bg-card p-6">
-          <div className="mb-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Match score distribution</div>
-          {data.scoreDistribution.map((b) => (
-            <Bar key={b.label} label={b.label} count={b.count} max={scoreMax} color="var(--primary)" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  useEffect(() => { load(); }, [load]);
+  if (loading) return <p className="context-note" role="status">Loading hiring activity…</p>;
+  if (error) return <><Alert message={error} /><Btn variant="secondary" onClick={load}>Try again</Btn></>;
+  return data ? <AnalyticsSummary data={data} /> : null;
 }

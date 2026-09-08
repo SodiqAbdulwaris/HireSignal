@@ -1,200 +1,76 @@
-import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeftIcon, ListBulletIcon, ViewGridIcon } from "@radix-ui/react-icons";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getJob, getJobApplications, advanceApplicationStage, bulkAdvanceApplicationStage } from "../../lib/api";
+import { APPLICATION_STAGES, applicationStage } from "../../lib/applicationStages";
+import { fmtDate } from "../../lib/utils";
 import Alert from "../ui/Alert";
 import Btn from "../ui/Btn";
-import Badge from "../ui/Badge";
-import Avatar from "../ui/Avatar";
-import SkeletonBlock from "../ui/SkeletonBlock";
 import Nav from "../layout/Nav";
 
-const STAGES = [
-  { key: "pending", label: "Pending" },
-  { key: "reviewed", label: "Reviewed" },
-  { key: "shortlisted", label: "Shortlisted" },
-  { key: "rejected", label: "Rejected" },
-];
-
-const STAGE_BADGE = { pending: "yellow", reviewed: "blue", shortlisted: "green", rejected: "red" };
-
+const nameOf = application => application.candidateProfile?.fullName || "Candidate";
+export function PipelineContent({ applications, onAdvance, onBulkAdvance }) {
+  const [view, setView] = useState("list");
+  const [filter, setFilter] = useState("all");
+  const [selected, setSelected] = useState(new Set());
+  const [target, setTarget] = useState("reviewed");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const visible = applications.filter(application => filter === "all" || application.status === filter);
+  async function update(operation, copy) {
+    if (busy) return;
+    setBusy(true); setError(null); setMessage(null);
+    try { const result = await operation(); if (result.success) { setMessage(copy); setSelected(new Set()); } else setError(result.message || "Could not update the stage."); }
+    catch { setError("Could not update the stage. Try again."); }
+    finally { setBusy(false); }
+  }
+  function toggle(id) { setSelected(previous => { const next = new Set(previous); next.has(id) ? next.delete(id) : next.add(id); return next; }); }
+  function stageControl(application) {
+    return <label className="stage-control">Stage<select disabled={busy} value={application.status} aria-label={`Stage for ${nameOf(application)}`} onChange={event => { const status = event.target.value; update(() => onAdvance(application._id, status), `${nameOf(application)} moved to ${applicationStage(status).label.toLowerCase()}.`); }}>{APPLICATION_STAGES.map(stage => <option key={stage.key} value={stage.key}>{stage.label}</option>)}</select></label>;
+  }
+  function candidate(application) {
+    const profile = application.candidateProfile;
+    return <div className="pipeline-person"><h3>{nameOf(application)}</h3><p>{profile?.yearsExperience != null ? `${profile.yearsExperience} years experience` : "Experience not provided"}</p><p className="pipeline-skills">{profile?.skills?.slice(0, 4).join(" · ") || "No profile skills available"}{profile?.skills?.length > 4 && ` · +${profile.skills.length - 4} more`}</p><span>Applied {fmtDate(application.appliedAt)}</span></div>;
+  }
+  return <section aria-label="Applicant pipeline">
+    <Alert message={error} /><Alert message={message} variant="success" />
+    <div className="section-toolbar"><div className="summary-line mb-0"><span><strong>{applications.length}</strong> applications</span><span><strong>{applications.filter(a => a.status === "pending").length}</strong> awaiting review</span></div><div className="view-switch" aria-label="Pipeline view"><button aria-pressed={view === "list"} onClick={() => setView("list")}>List</button><button aria-pressed={view === "board"} onClick={() => { setView("board"); setSelected(new Set()); }}>Board</button></div></div>
+    <div className="stage-filters" aria-label="Filter by stage"><button aria-pressed={filter === "all"} disabled={busy} onClick={() => { setFilter("all"); setSelected(new Set()); }}>All <span>{applications.length}</span></button>{APPLICATION_STAGES.map(stage => <button key={stage.key} aria-pressed={filter === stage.key} disabled={busy} onClick={() => { setFilter(stage.key); setSelected(new Set()); }}>{stage.label}<span>{applications.filter(a => a.status === stage.key).length}</span></button>)}</div>
+    {!applications.length ? <div className="empty-panel"><h2>Ready for your first applicant.</h2><p>Applications will appear here when candidates apply for this role.</p></div> : view === "list" ? <>
+      <div className="pipeline-bulk"><label><input type="checkbox" disabled={busy || !visible.length} checked={visible.length > 0 && visible.every(a => selected.has(a._id))} onChange={event => setSelected(event.target.checked ? new Set(visible.map(a => a._id)) : new Set())} /> Select visible applicants</label>{selected.size > 0 && <div className="flex flex-wrap items-center gap-3"><span className="text-sm">{selected.size} selected</span><select aria-label="Stage for selected applicants" disabled={busy} value={target} onChange={event => setTarget(event.target.value)}>{APPLICATION_STAGES.map(stage => <option key={stage.key} value={stage.key}>{stage.label}</option>)}</select><Btn disabled={busy} onClick={() => update(() => onBulkAdvance([...selected], target), `${selected.size} applications updated.`)}>{busy ? "Updating…" : "Move selected"}</Btn></div>}</div>
+      <div className="record-list">{visible.map(application => <article className="pipeline-record" key={application._id}><input type="checkbox" aria-label={`Select ${nameOf(application)}`} disabled={busy} checked={selected.has(application._id)} onChange={() => toggle(application._id)} />{candidate(application)}{stageControl(application)}</article>)}{!visible.length && <p className="p-6 text-sm text-muted-foreground">No applicants in this stage.</p>}</div>
+    </> : <div className="pipeline-board">{APPLICATION_STAGES.filter(stage => filter === "all" || filter === stage.key).map(stage => <section className="pipeline-column" key={stage.key}><div className="section-heading"><h2>{stage.label}</h2><span>{applications.filter(a => a.status === stage.key).length}</span></div>{applications.filter(a => a.status === stage.key).map(application => <article className="pipeline-card" key={application._id}>{candidate(application)}{stageControl(application)}</article>)}{!applications.some(a => a.status === stage.key) && <p className="record-meta">No applicants in this stage.</p>}</section>)}</div>}
+  </section>;
+}
 export default function Pipeline({ onContactClick }) {
   const { jobId } = useParams();
   const navigate = useNavigate();
   const { token } = useAuth();
-
   const [job, setJob] = useState(null);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [view, setView] = useState("board");
-  const [selected, setSelected] = useState(new Set());
-  const [bulkStatus, setBulkStatus] = useState("reviewed");
-  const [busyId, setBusyId] = useState(null);
-  const [bulkBusy, setBulkBusy] = useState(false);
-
   const load = useCallback(async () => {
-    setLoading(true);
-    const [jobRes, appsRes] = await Promise.all([getJob(jobId, token), getJobApplications(jobId, token)]);
-    if (jobRes.success) setJob(jobRes.data);
-    if (appsRes.success) setApplications(appsRes.data);
-    else setError(appsRes.message);
-    setLoading(false);
+    setLoading(true); setError(null);
+    try {
+      const [jobResult, result] = await Promise.all([getJob(jobId, token), getJobApplications(jobId, token)]);
+      if (jobResult.success) setJob(jobResult.data);
+      if (result.success) setApplications(result.data);
+      if (!result.success || !jobResult.success) setError(result.message && !result.success ? result.message : jobResult.message || "Could not load the pipeline.");
+    } catch { setError("Could not load the pipeline. Try again."); }
+    finally { setLoading(false); }
   }, [jobId, token]);
-
   useEffect(() => { load(); }, [load]);
-
-  async function handleAdvance(applicationId, status) {
-    setBusyId(applicationId);
-    const r = await advanceApplicationStage(jobId, applicationId, status, token);
-    setBusyId(null);
-    if (r.success) {
-      setApplications((prev) => prev.map((a) => (a._id === applicationId ? { ...a, status } : a)));
-    } else {
-      setError(r.message);
-    }
+  async function advance(id, status) {
+    const result = await advanceApplicationStage(jobId, id, status, token);
+    if (result.success) setApplications(previous => previous.map(application => application._id === id ? { ...application, status } : application));
+    return result;
   }
-
-  function toggleSelected(id) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  async function bulkAdvance(ids, status) {
+    const result = await bulkAdvanceApplicationStage(jobId, ids, status, token);
+    if (result.success) setApplications(previous => previous.map(application => ids.includes(application._id) ? { ...application, status } : application));
+    return result;
   }
-
-  async function handleBulkAdvance() {
-    if (selected.size === 0) return;
-    setBulkBusy(true);
-    const ids = Array.from(selected);
-    const r = await bulkAdvanceApplicationStage(jobId, ids, bulkStatus, token);
-    setBulkBusy(false);
-    if (r.success) {
-      setApplications((prev) => prev.map((a) => (ids.includes(a._id) ? { ...a, status: bulkStatus } : a)));
-      setSelected(new Set());
-    } else {
-      setError(r.message);
-    }
-  }
-
-  const candidateName = (a) => a.candidateProfile?.fullName || "Candidate";
-
-  return (
-    <div>
-      <Nav onContactClick={onContactClick} />
-      <div className="px-4 pb-16 pt-6 sm:px-8">
-        <div className="fade-up mb-6 flex flex-wrap items-center gap-4">
-          <Btn variant="secondary" size="sm" onClick={() => navigate("/recruiter/jobs")}><ArrowLeftIcon /> Back</Btn>
-          <div>
-            <h3 className="text-lg font-bold text-foreground">{job?.title || "Pipeline"}</h3>
-            <div className="text-xs text-muted-foreground">{applications.length} applicant(s)</div>
-          </div>
-          <div className="ml-auto flex gap-2">
-            <Btn variant={view === "board" ? "primary" : "secondary"} size="sm" onClick={() => setView("board")}>
-              <ViewGridIcon /> Board
-            </Btn>
-            <Btn variant={view === "table" ? "primary" : "secondary"} size="sm" onClick={() => setView("table")}>
-              <ListBulletIcon /> Table
-            </Btn>
-          </div>
-        </div>
-        <Alert message={error} variant="error" />
-
-        {loading ? (
-          <SkeletonBlock height={200} />
-        ) : view === "board" ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {STAGES.map((stage) => (
-              <div key={stage.key} className="rounded-[14px] border border-border bg-card p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-foreground">{stage.label}</div>
-                  <Badge variant={STAGE_BADGE[stage.key]}>{applications.filter((a) => a.status === stage.key).length}</Badge>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {applications.filter((a) => a.status === stage.key).map((a) => (
-                    <div key={a._id} className="rounded-lg bg-secondary p-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar name={candidateName(a)} size={28} />
-                        <div className="min-w-0 text-[13px] font-medium">{candidateName(a)}</div>
-                      </div>
-                      <select
-                        className="mt-2 text-xs"
-                        value={a.status}
-                        disabled={busyId === a._id}
-                        onChange={(e) => handleAdvance(a._id, e.target.value)}
-                      >
-                        {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                  {applications.filter((a) => a.status === stage.key).length === 0 && (
-                    <div className="text-xs text-muted-foreground">No applicants</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div>
-            {selected.size > 0 && (
-              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-4 py-2.5">
-                <span className="text-[13px] text-muted-foreground">{selected.size} selected</span>
-                <select className="w-auto" value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)}>
-                  {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                </select>
-                <Btn variant="primary" size="sm" onClick={handleBulkAdvance} disabled={bulkBusy}>
-                  {bulkBusy ? "Updating…" : "Move selected"}
-                </Btn>
-              </div>
-            )}
-            <div className="overflow-x-auto rounded-[14px] border border-border bg-card">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr>
-                    <th className="w-10 border-b border-border px-3 py-2.5">
-                      <input
-                        type="checkbox"
-                        className="w-auto"
-                        checked={selected.size > 0 && selected.size === applications.length}
-                        onChange={(e) => setSelected(e.target.checked ? new Set(applications.map((a) => a._id)) : new Set())}
-                      />
-                    </th>
-                    {["Candidate", "Status", "Applied"].map((h) => (
-                      <th key={h} className="whitespace-nowrap border-b border-border px-3 py-2.5 text-left text-[13px] font-medium text-muted-foreground">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {applications.map((a) => (
-                    <tr key={a._id}>
-                      <td className="border-b border-border px-3 py-2.5">
-                        <input type="checkbox" className="w-auto" checked={selected.has(a._id)} onChange={() => toggleSelected(a._id)} />
-                      </td>
-                      <td className="whitespace-nowrap border-b border-border px-3 py-2.5 text-[13px]">{candidateName(a)}</td>
-                      <td className="whitespace-nowrap border-b border-border px-3 py-2.5">
-                        <select
-                          className="w-auto text-xs"
-                          value={a.status}
-                          disabled={busyId === a._id}
-                          onChange={(e) => handleAdvance(a._id, e.target.value)}
-                        >
-                          {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                        </select>
-                      </td>
-                      <td className="whitespace-nowrap border-b border-border px-3 py-2.5 text-[13px] text-muted-foreground">
-                        {a.appliedAt ? new Date(a.appliedAt).toLocaleDateString() : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {applications.length === 0 && <div className="p-6 text-center text-[13px] text-muted-foreground">No applicants yet.</div>}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return <><Nav onContactClick={onContactClick} /><main id="main-content" tabIndex={-1} className="app-main"><button className="text-link mb-6" onClick={() => navigate("/recruiter/jobs")}>← Back to roles</button><div className="section-heading mb-7"><div><div className="page-eyebrow">Applicant pipeline</div><h1 className="mt-2 text-3xl font-semibold tracking-tight">{job?.title || "Your applicants"}</h1><p className="mt-3 text-sm text-muted-foreground">See who is waiting, review their experience, and keep each application up to date.</p></div></div>{loading ? <p role="status" className="context-note">Loading applications…</p> : error ? <><Alert message={error} /><Btn variant="secondary" onClick={load}>Try again</Btn></> : <PipelineContent applications={applications} onAdvance={advance} onBulkAdvance={bulkAdvance} />}</main></>;
 }
