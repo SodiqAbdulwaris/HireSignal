@@ -93,6 +93,17 @@ describe("AuthPage — email verification gating (Phase 3)", () => {
   });
 });
 
+it("clears email and password when switching tabs, instead of leaking one form's text into the other", async () => {
+  renderAuthPage();
+  fireEvent.change(screen.getByPlaceholderText("you@example.com"), { target: { value: "typo@example.com" } });
+  fireEvent.change(screen.getByPlaceholderText("••••••••"), { target: { value: "wrong-password" } });
+
+  fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+  expect(screen.getByPlaceholderText("you@example.com")).toHaveValue("");
+  expect(screen.getByPlaceholderText("••••••••")).toHaveValue("");
+});
+
 it("registers the selected recruiter intent and allows password visibility", async () => {
   mockAuthRegister.mockResolvedValue({ success: true, message: "Verify your email.", data: { needsVerification: true } });
   renderAuthPage();

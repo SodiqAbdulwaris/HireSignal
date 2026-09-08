@@ -39,6 +39,11 @@ export function AuthForm({ login, onLogin = authLogin, onRegister = authRegister
     setSuccessMsg(null);
     setShowResend(false);
     setResendSuccess(null);
+    // Sign in and Create account share this one form object. Without this
+    // reset, switching tabs carries over whatever was typed on the other
+    // tab — including into the masked password field, where a user has no
+    // way to see the leftover text before it gets silently appended to.
+    setForm({ email: "", password: "", fullName: "", role: "candidate" });
   }
 
   async function handleLogin() {
