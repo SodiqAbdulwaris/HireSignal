@@ -63,6 +63,16 @@ export async function apiCall(method, path, body = null, token = null, isForm = 
     const res = await fetch(API_BASE + path, fetchOptions);
 
     if (res.status === 401 && path !== "/auth/refresh" && path !== "/auth/login") {
+      const retryWithToken = (newToken) => {
+        if (!newToken) {
+          return { success: false, status: 401, message: "Session expired. Please log in again." };
+        }
+        const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
+        return fetch(API_BASE + path, { ...fetchOptions, headers: retryHeaders })
+          .then(parseResponse)
+          .catch(() => ({ success: false, message: "Retry connection failed" }));
+      };
+
       if (!isRefreshing) {
         isRefreshing = true;
 
@@ -81,7 +91,11 @@ export async function apiCall(method, path, body = null, token = null, isForm = 
             }
             authToken = newAccessToken;
             isRefreshing = false;
+            // Wake up every OTHER request that queued behind this refresh —
+            // the triggering request (this one) retries directly below,
+            // since it never subscribed to itself in the first place.
             onRefreshed(newAccessToken);
+            return await retryWithToken(newAccessToken);
           } else {
             isRefreshing = false;
             if (logoutCallback) {
@@ -103,21 +117,7 @@ export async function apiCall(method, path, body = null, token = null, isForm = 
       }
 
       return new Promise((resolve) => {
-        subscribeTokenRefresh((newToken) => {
-          if (!newToken) {
-            resolve({ success: false, status: 401, message: "Session expired. Please log in again." });
-            return;
-          }
-          const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
-          resolve(
-            fetch(API_BASE + path, {
-              ...fetchOptions,
-              headers: retryHeaders,
-            })
-              .then(parseResponse)
-              .catch(() => ({ success: false, message: "Retry connection failed" }))
-          );
-        });
+        subscribeTokenRefresh((newToken) => resolve(retryWithToken(newToken)));
       });
     }
 
