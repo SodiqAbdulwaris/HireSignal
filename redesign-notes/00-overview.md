@@ -28,6 +28,19 @@ The user explicitly asked for everything logged and documented (they're not avai
 - **`variants/`** — one file per UI variant, updated as each build completes: brief given, what the tool actually produced, how it was verified, any issues found.
 - **`research/`** — any external research consulted (web searches, the `ui-ux-pro-max` skill's data lookups) that informed a decision, kept separate from the decisions themselves so a decision file stays short and a research trail stays inspectable.
 
+## Frontend v2 — 18-variant round — 2026-09-06
+
+All 18 variants from
+[decisions/2026-09-06-frontend-v2-multi-variant-plan.md](decisions/2026-09-06-frontend-v2-multi-variant-plan.md)
+are built, committed, and documented in `variants/v2-*.md`. Each lives in
+its own worktree under `../hiresignal-worktrees-v2/<name>/` on branch
+`frontend-v2/<name>`, off `main`, touching only the visual/component
+layer of 4 representative screens (Auth, a dashboard, PostJobView,
+Match/Pipeline) against the real, unmodified backend. None merged into
+`main` — that's a decision for the user once they've compared them.
+
+To run one: `cd ../hiresignal-worktrees-v2/<name>/frontend && npm run dev`.
+
 ## New-feature phases (F1-F4) — 2026-09-06
 
 With the visual redesign (R1-R5) done on the `claude-teal` variant now
