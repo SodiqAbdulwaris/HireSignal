@@ -42,7 +42,7 @@ export default class ErrorBoundary extends React.Component {
               An unexpected error occurred in the application. Please try reloading the page. If the issue persists, clearing your local session might help.
             </p>
 
-            {this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <div className="mb-8 max-h-[150px] overflow-y-auto rounded-lg border border-border bg-black/25 p-4 text-left">
                 <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Error Message
