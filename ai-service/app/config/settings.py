@@ -1,12 +1,19 @@
+import os
+import re
 from functools import lru_cache
 from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+APP_ENV = os.getenv("APP_ENV", "local").strip()
+if not re.fullmatch(r"[A-Za-z0-9_-]+", APP_ENV):
+    raise RuntimeError("APP_ENV may contain only letters, numbers, underscores, and hyphens.")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=f".env.{APP_ENV}",
         env_file_encoding="utf-8",
         extra="ignore",
     )

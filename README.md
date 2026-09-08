@@ -70,7 +70,7 @@ Built as a school project on the MERN stack with a Python/FastAPI AI microservic
 
 ### Environment variables
 
-Create `backend/.env.local`:
+Create `backend/.env.local` (or select another slug with `APP_ENV`, for example `.env.development` or `.env.production`):
 
 ```env
 PORT=5000
@@ -79,9 +79,13 @@ JWT_SECRET=your-secret-here
 AI_SERVICE_URL=http://localhost:8000
 AI_SERVICE_TIMEOUT_MS=30000
 MAX_FILE_SIZE_BYTES=5242880
+FRONTEND_URL=https://app.example.com
+CORS_ALLOWED_ORIGINS=https://app.example.com,http://192.168.1.25:5173
+AUTH_COOKIE_SAME_SITE=none
+AUTH_COOKIE_SECURE=true
 ```
 
-Create `ai-service/.env`:
+Create `ai-service/.env.local`:
 
 ```env
 MONGO_URI=mongodb://localhost:27017/ai-resume-screener
@@ -116,6 +120,8 @@ npm run dev --prefix backend
 npm run dev --prefix frontend
 python -m uvicorn main:app --reload --app-dir ai-service
 ```
+
+`APP_ENV` selects slugged backend and AI-service files and defaults to `local`; Vite reads the matching mode file (`.env.local`, `.env.development`, or `.env.production`). Plain `.env` files are intentionally ignored.
 
 | Service | URL |
 |---|---|

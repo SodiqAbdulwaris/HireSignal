@@ -6,10 +6,13 @@ Express + MongoDB backend that owns persistence and business logic, and wraps th
 
 ```bash
 npm install
+# Copy the template to the slug you want to run. APP_ENV defaults to local.
 cp .env.example .env.local
-# Edit .env.local with your MongoDB URI, JWT secret, and AI service URL
+# Edit .env.local with your MongoDB URI, JWT secret, public frontend URL, and allowed browser origins.
 npm run dev
 ```
+
+The backend reads only `backend/.env.<APP_ENV>`; it never reads a plain `.env` file. Use `APP_ENV=development` for `.env.development` and `APP_ENV=production` for `.env.production`. Deployment platforms should provide the same values as environment variables instead of committing a production file.
 
 The server listens on `PORT` (default `5000`) and connects to MongoDB before accepting requests — if the connection fails, the process exits rather than serving broken responses.
 
@@ -24,8 +27,10 @@ The server listens on `PORT` (default `5000`) and connects to MongoDB before acc
 | `AI_SERVICE_TIMEOUT_MS` | `30000` | Timeout for AI service calls, in milliseconds |
 | `MAX_FILE_SIZE_BYTES` | `5242880` (5MB) | Maximum resume upload size in bytes |
 | `ACCESS_TOKEN_EXPIRY` | `15m` | JWT access token lifetime |
-| `FRONTEND_URL` | `http://localhost:5173` | Frontend origin — used both for CORS and for building links in verification/reset emails |
-| `FRONTEND_URLS` | — | Optional comma-separated list of additional allowed CORS origins, on top of `FRONTEND_URL` and the built-in `localhost:5173`/`localhost:3000` |
+| `FRONTEND_URL` | — (required) | Canonical public HTTPS frontend origin used to build verification/reset links |
+| `CORS_ALLOWED_ORIGINS` | — | Comma-separated exact browser origins allowed to call the API; include each LAN IP with its port |
+| `AUTH_COOKIE_SAME_SITE` | `none` in production, otherwise `lax` | `strict`, `lax`, or `none` refresh-cookie same-site policy |
+| `AUTH_COOKIE_SECURE` | `true` in production, otherwise `false` | Whether refresh cookies require HTTPS |
 | `DEFAULT_PAGE_LIMIT` | `20` | Default page size for cursor-paginated list endpoints |
 | `MAX_PAGE_LIMIT` | `100` | Upper bound a client can request via `?limit=` |
 | `RESEND_API_KEY` | — | If set, email is sent via [Resend](https://resend.com) (takes priority over SMTP) |
@@ -37,7 +42,7 @@ The server listens on `PORT` (default `5000`) and connects to MongoDB before acc
 | `EMAIL_FROM` | `RESEND_FROM_EMAIL` or `noreply@hiresignal.com` | From-address for all outgoing email |
 | `CONTACT_FEEDBACK_TO_EMAIL` | — | Recipient address for the public `/contact` form |
 
-If none of `RESEND_API_KEY` or `SMTP_USER`/`SMTP_PASS` are set, outgoing email (verification, password reset, contact form) is logged to the console instead of actually being sent — useful for local development.
+If none of `RESEND_API_KEY` or `SMTP_USER`/`SMTP_PASS` are set, outgoing email (including the full verification/reset URL) is logged to the terminal instead of being sent. Registration and resend remain available, so local testing does not crash or require a mail provider.
 
 ## API Endpoints
 
