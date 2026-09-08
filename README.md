@@ -108,7 +108,10 @@ PARSER_AI_TIMEOUT_SECONDS=20.0
 
 ```bash
 npm run install:all
-pip install -r ai-service/requirements.txt
+cd ai-service
+uv venv --python 3.12
+uv pip install -r requirements.txt
+cd ..
 ```
 
 ### Run

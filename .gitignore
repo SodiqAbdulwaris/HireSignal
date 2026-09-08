@@ -21,6 +21,7 @@ frontend/dist/
 __pycache__/
 *.pyc
 ai-service/env/
+ai-service/.venv/
 ai-service/app/tests/
 ai-service/app/extras/
 ai-service/app/embedding-models
