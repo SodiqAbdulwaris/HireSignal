@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from huggingface_hub import login
 
@@ -51,10 +51,20 @@ app.include_router(parse_router)
 app.include_router(match_router)
 
 
+@app.get("/health/live")
+def liveness():
+    """Process-alive check: always 200 once the app can serve HTTP at all."""
+    return {"status": "ok"}
+
+
 @app.get("/health")
-def health():
+def readiness(response: Response):
+    """Readiness check: fails with 503 until the embedding model is loaded,
+    so an orchestrator (e.g. Railway's healthcheckPath) doesn't route
+    matching traffic to an instance that can only 500 on /match/."""
     model_ready = getattr(app.state, "model_ready", False)
-    return {"status": "ok", "model_ready": model_ready}
+    response.status_code = 200 if model_ready else 503
+    return {"status": "ok" if model_ready else "not_ready", "model_ready": model_ready}
 
 
 @app.exception_handler(AppException)
