@@ -9,16 +9,21 @@ router = APIRouter()
 settings = get_settings()
 
 
+CHUNK_SIZE = 1024 * 1024
+
+
 @router.post("/parse/", response_model=ParsedCandidate)
 async def parse_resume(file: UploadFile = File(...)):
-    contents = await file.read()
-
-    if len(contents) > settings.MAX_FILE_SIZE_MB * 1024 * 1024:
-        raise FileTooLargeError(
-            filename=file.filename,
-            size_mb=round(len(contents) / (1024 * 1024), 2),
-            max_mb=settings.MAX_FILE_SIZE_MB,
-        )
+    max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    size = 0
+    while chunk := await file.read(CHUNK_SIZE):
+        size += len(chunk)
+        if size > max_bytes:
+            raise FileTooLargeError(
+                filename=file.filename,
+                size_mb=round(size / (1024 * 1024), 2),
+                max_mb=settings.MAX_FILE_SIZE_MB,
+            )
 
     await file.seek(0)
     return await parse_resume_service(file)
