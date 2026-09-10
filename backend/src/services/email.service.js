@@ -1,6 +1,18 @@
+const fs = require('fs');
+const path = require('path');
 const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
 const config = require('../config/env');
+
+// No provider configured (local dev) means emails only ever hit the
+// console, which scrolls away. Mirror them to a gitignored file so a
+// verification/reset link is still findable after the fact.
+const OUTBOX_LOG_PATH = path.resolve(__dirname, '../../logs/email-outbox.log');
+
+function appendToOutboxLog(entry) {
+  fs.mkdirSync(path.dirname(OUTBOX_LOG_PATH), { recursive: true });
+  fs.appendFileSync(OUTBOX_LOG_PATH, JSON.stringify(entry) + '\n');
+}
 
 let transporter = null;
 let resendClient = null;
@@ -123,6 +135,8 @@ async function sendEmail({ to, subject, text, html, replyTo }) {
   console.log('------------------ TEXT CONTENT ------------------');
   console.log(text);
   console.log('==================================================\n');
+
+  appendToOutboxLog({ timestamp: new Date().toISOString(), to, from, replyTo, subject, text });
 
   return { success: true, messageId: 'console-log', delivery: 'console' };
 }

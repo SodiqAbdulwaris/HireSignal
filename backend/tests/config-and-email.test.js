@@ -1,5 +1,6 @@
 const request = require('supertest');
 const path = require('path');
+const fs = require('fs');
 const app = require('../src/app');
 const config = require('../src/config/env');
 const { buildVerificationLink } = require('../src/controllers/auth.controller');
@@ -37,8 +38,11 @@ describe('verification delivery', () => {
     );
   });
 
-  it('writes a usable message to the terminal when no mail provider is configured', async () => {
+  it('writes a usable message to the terminal and outbox log when no mail provider is configured', async () => {
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const outboxPath = path.resolve(__dirname, '../logs/email-outbox.log');
+    const before = fs.existsSync(outboxPath) ? fs.readFileSync(outboxPath, 'utf8') : '';
+
     const result = await sendEmail({
       to: 'candidate@example.test',
       subject: 'Verify your email for HireSignal',
@@ -48,6 +52,13 @@ describe('verification delivery', () => {
 
     expect(result).toEqual(expect.objectContaining({ success: true, delivery: 'console' }));
     expect(logSpy.mock.calls.flat().join(' ')).toContain('verify-email?token=test-token');
+
+    const after = fs.readFileSync(outboxPath, 'utf8');
+    const newLine = after.slice(before.length).trim().split('\n').pop();
+    expect(JSON.parse(newLine)).toEqual(
+      expect.objectContaining({ to: 'candidate@example.test', text: expect.stringContaining('verify-email?token=test-token') })
+    );
+
     logSpy.mockRestore();
   });
 

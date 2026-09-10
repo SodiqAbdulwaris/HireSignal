@@ -31,6 +31,11 @@ AGENTS.md
 graphify-out/
 
 backend/uploads/
+backend/logs/
 Design.md
 docs/
 PROJECT_SUMMARY.md
+
+Resumes/
+siwes_report/
+ai-service/all-MiniLM-L6-v2/
