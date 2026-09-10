@@ -1,4 +1,5 @@
 import logging
+import shutil
 from pathlib import Path
 import numpy as np
 from fastapi import Request
@@ -41,8 +42,16 @@ def load_embedding_model(model_name: str, cache_dir: str) -> SentenceTransformer
     logger.info(f"Local model not found. Downloading '{model_name}' from Hugging Face.")
     model = SentenceTransformer(model_name)
 
-    local_path.mkdir(parents=True, exist_ok=True)
-    model.save(str(local_path))
+    # Save to a staging dir and rename into place atomically. A process
+    # restart mid-save (e.g. a crashing container) previously left a
+    # half-written cache dir behind that the next restart would try to
+    # load, failing with a safetensors deserialization error instead of
+    # just re-downloading.
+    staging_path = local_path.parent / f".{model_name}.tmp"
+    if staging_path.exists():
+        shutil.rmtree(staging_path)
+    model.save(str(staging_path))
+    staging_path.replace(local_path)
     return model
 
 
